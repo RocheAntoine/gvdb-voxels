@@ -2540,8 +2540,8 @@ bool VolumeGVDB::LoadHTG(std::string fname)
         SetPoints(pntpos, data, pntclr);
 
         int scPntLen = 0;
-        int subcell_size = 4;
-        float radius = 1.0;
+        int subcell_size = 8;
+        float radius = 1.f;
         InsertPointsSubcell(subcell_size, numberOfVoxels, radius, Vector3DF(0, 0, 0), scPntLen);
         GatherDensity(subcell_size, numberOfVoxels, radius, Vector3DF(0, 0, 0), scPntLen, 0, 1,
                       true); // true = accumulate
@@ -2586,8 +2586,8 @@ bool VolumeGVDB::LoadHTG(std::string fname)
         SetPoints(pntpos, data, pntclr);
 
         int scPntLen = 0;
-        int subcell_size = 1;
-        float radius = 1.0;
+        int subcell_size = 8;
+        float radius = 1.f;
         InsertPointsSubcell(subcell_size, numberOfVoxels, radius, Vector3DF(0, 0, 0), scPntLen);
         GatherDensity(subcell_size, numberOfVoxels, radius, Vector3DF(0, 0, 0), scPntLen, 0, 1,
                       true); // true = accumulate
