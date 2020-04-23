@@ -84,17 +84,7 @@ using namespace nvdb;
 		openvdb::tree::LeafNode<openvdb::Vec3f, 4U>::Buffer buf4VU;
 	};
 #endif
-#ifdef VTK_FOUND
-#undef AllValues
 
-#include <vtkXMLHyperTreeGridReader.h>
-#include <vtkHyperTreeGrid.h>
-#include <vtkHyperTreeGridNonOrientedGeometryCursor.h>
-#include <vtkHyperTree.h>
-#include <vtkCellData.h>
-#include <vtkDoubleArray.h>
-
-#endif
 
 Vector3DI VolumeGVDB::getVersion()
 {
@@ -2226,8 +2216,18 @@ bool VolumeGVDB::LoadBRK(std::string fname)
 #define VTK_FOUND
 #ifdef VTK_FOUND
 
-#define FILL_POSITION 0
-#define FILL_SCALAR 1
+#undef AllValues
+
+#include <vtkXMLHyperTreeGridReader.h>
+#include <vtkHyperTreeGrid.h>
+#include <vtkHyperTreeGridNonOrientedGeometryCursor.h>
+#include <vtkHyperTree.h>
+#include <vtkCellData.h>
+#include <vtkDoubleArray.h>
+#include <vtkLookupTable.h>
+
+#define HTG_ACTIVATE_SPACE 0
+#define HTG_FILL_INFO 1
 
 float sceneSize;
 float sceneFactor;
@@ -2235,10 +2235,29 @@ Vector3DF sceneOffset;
 std::vector<Vector3DF> htgPositions;
 std::vector<uint> htgColors;
 
+double *dataRange;
+vtkDataArray *scalars = nullptr;
+vtkLookupTable *lut;
+
+uint32_t calculColor(vtkHyperTreeGridNonOrientedGeometryCursor *cursor)
+{
+    if (!scalars)
+    {
+        return 0x00808080;
+    }
+    uint32_t tmp = 0;
+
+    const unsigned char *rgb = lut->MapValue(*(scalars->GetTuple(cursor->GetGlobalNodeIndex())));
+    tmp |= rgb[0] << 16U;
+    tmp |= rgb[1] << 8U;
+    tmp |= rgb[2];
+    return tmp;
+}
 
 
 void VolumeGVDB::dfsHT(vtkHyperTreeGrid *htg,
-                       vtkHyperTreeGridNonOrientedGeometryCursor *cursor)
+                       vtkHyperTreeGridNonOrientedGeometryCursor *cursor,
+                       unsigned int operation)
 {
 
     if (cursor->IsMasked())
@@ -2257,11 +2276,11 @@ void VolumeGVDB::dfsHT(vtkHyperTreeGrid *htg,
         maxCursor *= sceneFactor;
         maxCursor -= sceneOffset;
 
-        bool bnew;
-
-        slong leaf;
-
-        uint color = 0x00FF00FF;
+        uint color;
+        if (operation == HTG_FILL_INFO)
+        {
+            color = calculColor(cursor);
+        }
 
         for (float i = minCursor.x; i < maxCursor.x; ++i)
         {
@@ -2270,14 +2289,19 @@ void VolumeGVDB::dfsHT(vtkHyperTreeGrid *htg,
                 for (float k = minCursor.z; k < maxCursor.z; ++k)
                 {
                     Vector3DF pos(i, j, k);
-                    ActivateSpace(pos);
-                    htgPositions.push_back(pos);
-                    htgColors.push_back(color);
+                    if (operation == HTG_ACTIVATE_SPACE)
+                    {
+                        ActivateSpace(pos);
+                    }
+                    else if (operation == HTG_FILL_INFO)
+                    {
+                        htgPositions.push_back(pos);
+                        htgColors.push_back(color);
+                    }
                 }
             }
 
         }
-
 
 
     }
@@ -2287,7 +2311,7 @@ void VolumeGVDB::dfsHT(vtkHyperTreeGrid *htg,
         for (unsigned int i = 0; i < nbChild; i++)
         {
             cursor->ToChild(i);
-            dfsHT(htg, cursor);
+            dfsHT(htg, cursor, operation);
             cursor->ToParent();
         }
     }
@@ -2305,7 +2329,7 @@ bool VolumeGVDB::LoadHTG(std::string fname)
 
     verbosef("   Reading VTK-HyperTreeGrid file.\n");
 
-    unsigned int levelLimit = 7;
+    unsigned int levelLimit = 10;
 
     auto reader = vtkXMLHyperTreeGridReader::New();
     reader->SetFileName(fname.c_str());
@@ -2313,6 +2337,18 @@ bool VolumeGVDB::LoadHTG(std::string fname)
     reader->Update();
 
     auto htg = reader->GetOutput();
+
+    scalars = htg->GetCellData()->GetScalars("tev");
+
+    if (scalars)
+    {
+        dataRange = scalars->GetRange();
+
+        lut = vtkLookupTable::New();
+        lut->SetHueRange(0.66, 0);
+        lut->SetTableRange(dataRange[0], dataRange[1]);
+        lut->Build();
+    }
 
     verbosef("HTG loaded.\n");
 
@@ -2442,17 +2478,122 @@ bool VolumeGVDB::LoadHTG(std::string fname)
     ActivateSpace(mRoot, originZero, bnew);
 
     treeIterator.Initialize(htg);
-
-
-    count = 0;
     while ((hyperTree = treeIterator.GetNextTree()))
     {
         cursor->Initialize(htg, hyperTree->GetTreeIndex());
-        dfsHT(htg, cursor);
+        dfsHT(htg, cursor, HTG_ACTIVATE_SPACE);
     }
 
     // Finish Topology
     FinishTopology();
+
+    DestroyChannels();
+    AddChannel(0, T_FLOAT, mApron, F_LINEAR);
+    AddChannel(1, T_UCHAR4, mApron, F_LINEAR);
+    UpdateAtlas();
+
+    verbosef("\tFilling pos and colors.\n");
+    unsigned int numberOfVoxels;
+    count = 0;
+    treeIterator.Initialize(htg);
+    while ((hyperTree = treeIterator.GetNextTree()))
+    {
+        cursor->Initialize(htg, hyperTree->GetTreeIndex());
+        dfsHT(htg, cursor, HTG_FILL_INFO);
+
+        numberOfVoxels = htgPositions.size();
+
+        if (numberOfVoxels < 100000)
+        {
+            continue;
+        }
+        DataPtr htgPosPtr;
+        DataPtr htgColorPtr;
+
+        DataPtr pntpos, pntclr;
+        AllocData(htgPosPtr, numberOfVoxels, sizeof(Vector3DF));
+        AllocData(htgColorPtr, numberOfVoxels, sizeof(uint));
+        {
+            Vector3DF *tmpPtr = (Vector3DF *) getDataPtr(0, htgPosPtr);
+
+            for (unsigned int i = 0; i < numberOfVoxels; ++i)
+            {
+                tmpPtr[i] = htgPositions[i];
+            }
+            htgPositions.clear();
+        }
+        {
+            uint *tmpPtr = (uint *) getDataPtr(0, htgColorPtr);
+            for (unsigned int i = 0; i < numberOfVoxels; ++i)
+            {
+                tmpPtr[i] = htgColors[i];
+            }
+            htgColors.clear();
+        }
+        CommitData(htgPosPtr);
+        CommitData(htgColorPtr);
+
+        SetDataGPU(pntpos, numberOfVoxels, htgPosPtr.gpu, 0, sizeof(Vector3DF));
+        SetDataGPU(pntclr, numberOfVoxels, htgColorPtr.gpu, 0, sizeof(uint));
+
+        DataPtr data;
+        SetPoints(pntpos, data, pntclr);
+
+        int scPntLen = 0;
+        int subcell_size = 4;
+        float radius = 1.0;
+        InsertPointsSubcell(subcell_size, numberOfVoxels, radius, Vector3DF(0, 0, 0), scPntLen);
+        GatherDensity(subcell_size, numberOfVoxels, radius, Vector3DF(0, 0, 0), scPntLen, 0, 1,
+                      true); // true = accumulate
+
+        numberOfVoxels = 0;
+        ++count;
+    }
+
+    if (numberOfVoxels > 0)
+    {
+
+        DataPtr htgPosPtr;
+        DataPtr htgColorPtr;
+
+        DataPtr pntpos, pntclr;
+        AllocData(htgPosPtr, numberOfVoxels, sizeof(Vector3DF));
+        AllocData(htgColorPtr, numberOfVoxels, sizeof(uint));
+        {
+            Vector3DF *tmpPtr = (Vector3DF *) getDataPtr(0, htgPosPtr);
+
+            for (unsigned int i = 0; i < numberOfVoxels; ++i)
+            {
+                tmpPtr[i] = htgPositions[i];
+            }
+            htgPositions.clear();
+        }
+        {
+            uint *tmpPtr = (uint *) getDataPtr(0, htgColorPtr);
+            for (unsigned int i = 0; i < numberOfVoxels; ++i)
+            {
+                tmpPtr[i] = htgColors[i];
+            }
+            htgColors.clear();
+        }
+        CommitData(htgPosPtr);
+        CommitData(htgColorPtr);
+
+        SetDataGPU(pntpos, numberOfVoxels, htgPosPtr.gpu, 0, sizeof(Vector3DF));
+        SetDataGPU(pntclr, numberOfVoxels, htgColorPtr.gpu, 0, sizeof(uint));
+
+        DataPtr data;
+        SetPoints(pntpos, data, pntclr);
+
+        int scPntLen = 0;
+        int subcell_size = 1;
+        float radius = 1.0;
+        InsertPointsSubcell(subcell_size, numberOfVoxels, radius, Vector3DF(0, 0, 0), scPntLen);
+        GatherDensity(subcell_size, numberOfVoxels, radius, Vector3DF(0, 0, 0), scPntLen, 0, 1,
+                      false); // true = accumulate
+    }
+    UpdateApron();
+
 
     PERF_POP();        // Activate
 
@@ -2460,10 +2601,7 @@ bool VolumeGVDB::LoadHTG(std::string fname)
     //verbosef ( "   Create Atlas. Free before: %6.2f MB\n", cudaGetFreeMem() );
     PERF_PUSH("Atlas");
 
-    DestroyChannels();
-    AddChannel(0, T_FLOAT, mApron, F_LINEAR);
-    AddChannel(1, T_UCHAR4, mApron, F_LINEAR);
-    UpdateAtlas();
+
     PERF_POP();
     //verbosef ( "   Create Atlas. Free after:  %6.2f MB, # Leaf: %d\n", cudaGetFreeMem(), leaf_max );
 
@@ -2472,47 +2610,7 @@ bool VolumeGVDB::LoadHTG(std::string fname)
 
     PERF_POP();
 
-    unsigned int numberOfVoxels = htgPositions.size();
 
-    DataPtr htgPosPtr;
-    DataPtr htgColorPtr;
-
-    DataPtr pntpos, pntclr;
-    AllocData(htgPosPtr, numberOfVoxels, sizeof(Vector3DF));
-    AllocData(htgColorPtr, numberOfVoxels, sizeof(Vector3DF));
-    {
-        Vector3DF *tmpPtr = (Vector3DF *) getDataPtr(0, htgPosPtr);
-
-        for (unsigned int i = 0; i < numberOfVoxels; ++i)
-        {
-            tmpPtr[i] = htgPositions[i];
-        }
-        htgPositions.clear();
-    }
-    {
-        uint* tmpPtr = (uint *) getDataPtr(0, htgColorPtr);
-        for (unsigned int i = 0; i < numberOfVoxels; ++i)
-        {
-            tmpPtr[i] = htgColors[i];
-        }
-        htgColors.clear();
-    }
-    CommitData(htgPosPtr);
-    CommitData(htgColorPtr);
-
-    SetDataGPU(pntpos, numberOfVoxels, htgPosPtr.gpu, 0, sizeof(Vector3DF));
-    SetDataGPU(pntclr, numberOfVoxels, htgColorPtr.gpu, 0, sizeof(Vector3DF));
-
-    DataPtr data;
-    SetPoints(pntpos, data, pntclr);
-
-    int scPntLen = 0;
-    int subcell_size = 1;
-    float radius = 1.0;
-    InsertPointsSubcell(subcell_size, numberOfVoxels, radius, Vector3DF(0, 0, 0), scPntLen);
-    GatherDensity(subcell_size, numberOfVoxels, radius, Vector3DF(0, 0, 0), scPntLen, 0, 1, true); // true = accumulate
-
-    UpdateApron();
 
     // vdbfile->close ();
     // delete vdbfile;
