@@ -2248,9 +2248,9 @@ uint32_t calculColor(vtkHyperTreeGridNonOrientedGeometryCursor *cursor)
     uint32_t tmp = 0;
 
     const unsigned char *rgb = lut->MapValue(*(scalars->GetTuple(cursor->GetGlobalNodeIndex())));
-    tmp |= rgb[0] << 16U;
+    tmp |= rgb[0];
     tmp |= rgb[1] << 8U;
-    tmp |= rgb[2];
+    tmp |= rgb[2] << 16;
     return tmp;
 }
 
@@ -2329,7 +2329,7 @@ bool VolumeGVDB::LoadHTG(std::string fname)
 
     verbosef("   Reading VTK-HyperTreeGrid file.\n");
 
-    unsigned int levelLimit = 10;
+    unsigned int levelLimit = 6;
 
     auto reader = vtkXMLHyperTreeGridReader::New();
     reader->SetFileName(fname.c_str());
@@ -2590,7 +2590,7 @@ bool VolumeGVDB::LoadHTG(std::string fname)
         float radius = 1.0;
         InsertPointsSubcell(subcell_size, numberOfVoxels, radius, Vector3DF(0, 0, 0), scPntLen);
         GatherDensity(subcell_size, numberOfVoxels, radius, Vector3DF(0, 0, 0), scPntLen, 0, 1,
-                      false); // true = accumulate
+                      true); // true = accumulate
     }
     UpdateApron();
 
