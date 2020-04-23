@@ -1052,7 +1052,7 @@ namespace nvdb
 
 #ifdef VTK_FOUND
         //VTK functions
-        void dfsHT(vtkHyperTreeGrid *,vtkHyperTreeGridNonOrientedGeometryCursor*, unsigned int, unsigned int &, Volume3D &,Vector3DF &,unsigned int);
+        void dfsHT(vtkHyperTreeGrid *,vtkHyperTreeGridNonOrientedGeometryCursor*);
 #endif
 
     protected:

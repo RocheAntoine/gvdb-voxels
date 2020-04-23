@@ -2232,15 +2232,13 @@ bool VolumeGVDB::LoadBRK(std::string fname)
 float sceneSize;
 float sceneFactor;
 Vector3DF sceneOffset;
-float scalarMax = 0.f;
+std::vector<Vector3DF> htgPositions;
+std::vector<uint> htgColors;
+
+
 
 void VolumeGVDB::dfsHT(vtkHyperTreeGrid *htg,
-                       vtkHyperTreeGridNonOrientedGeometryCursor *cursor,
-                       unsigned int maxLevel,
-                       unsigned int &count,
-                       Volume3D &vtemp,
-                       Vector3DF &vrange0,
-                       unsigned int operationType)
+                       vtkHyperTreeGridNonOrientedGeometryCursor *cursor)
 {
 
     if (cursor->IsMasked())
@@ -2249,170 +2247,39 @@ void VolumeGVDB::dfsHT(vtkHyperTreeGrid *htg,
     }
     if (cursor->IsLeaf())
     {
-//        if (cursor->GetLevel() == maxLevel)
-//        {
-            double bounds[6];
-            cursor->GetBounds(bounds);
-            Vector3DF minCursor(bounds[0], bounds[2], bounds[4]);
-            Vector3DF maxCursor(bounds[1], bounds[3], bounds[5]);
-            minCursor *= sceneFactor;
-            minCursor -= sceneOffset;
+        double bounds[6];
+        cursor->GetBounds(bounds);
+        Vector3DF minCursor(bounds[0], bounds[2], bounds[4]);
+        Vector3DF maxCursor(bounds[1], bounds[3], bounds[5]);
+        minCursor *= sceneFactor;
+        minCursor -= sceneOffset;
 
-            maxCursor *= sceneFactor;
-            maxCursor -= sceneOffset;
-            if (operationType == FILL_POSITION)
+        maxCursor *= sceneFactor;
+        maxCursor -= sceneOffset;
+
+        bool bnew;
+
+        slong leaf;
+
+        uint color = 0x00FF00FF;
+
+        for (float i = minCursor.x; i < maxCursor.x; ++i)
+        {
+            for (float j = minCursor.y; j < maxCursor.y; ++j)
             {
-                bool bnew;
-
-
-                leaf_pos.push_back(minCursor);
-
-                slong leaf;
-//                do
-//                leaf = ActivateSpace(mRoot, minCursor, bnew);
-
-                for(float i = minCursor.x; i < maxCursor.x; ++i)
+                for (float k = minCursor.z; k < maxCursor.z; ++k)
                 {
-                    for(float j = minCursor.y; j < maxCursor.y; ++j)
-                    {
-                        for(float k = minCursor.z; k < maxCursor.z; ++k)
-                        {
-                            Vector3DF pos(i,j,k);
-                            leaf = ActivateSpace(mRoot, pos, bnew);
-                            leaf_ptr.push_back(leaf);
-                        }
-                    }
-
+                    Vector3DF pos(i, j, k);
+                    ActivateSpace(pos);
+                    htgPositions.push_back(pos);
+                    htgColors.push_back(color);
                 }
-//                while (leaf == ID_UNDEFL);
-
-                assert(leaf != ID_UNDEFL);
-
             }
-            else if (operationType == FILL_SCALAR)
-            {
-//
-//                double *tmp = htg->GetCellData()->GetScalars("tev")->GetTuple(cursor->GetGlobalNodeIndex());
-//                float tmpFloat = static_cast<float>(*tmp);
-//                if (tmpFloat > scalarMax)
-//                {
-//                    scalarMax = tmpFloat;
-//                }
-//                *scalar = tmpFloat;
-//                float *scalar = &tmpFloat;
 
-//                float *test = (float*)malloc(sizeof(float));
-//                *test = 45;
-//                float tmpFloat = 1.f;
-//                vtemp.SetDomain(leaf_pos[count], leaf_pos[count] + Vector3DF(1.f,1.f,1.f));
-//                vtemp.CommitFromCPU(&tmpFloat);
-//
-//                // Copy from 3D texture into Atlas brick
-//                Node *node = getNode(leaf_ptr[count]);
-//                mPool->AtlasCopyTexZYX(0, node->mValue, vtemp.getPtr());
-//                ++count;
-                float tmpFloat = 0xFF00;
-
-                for(float i = minCursor.x; i < maxCursor.x; ++i)
-                {
-                    for(float j = minCursor.y; j < maxCursor.y; ++j)
-                    {
-                        for(float k = minCursor.z; k < maxCursor.z; ++k)
-                        {
-                            Vector3DF pos(i,j,k);
-                            vtemp.SetDomain(pos, pos + Vector3DF(1.f, 1.f, 1.f));
-                            vtemp.CommitFromCPU(&tmpFloat);
-
-                            Node *node = getNode(leaf_ptr[count++]);
-                            mPool->AtlasCopyTexZYX(0, node->mValue, vtemp.getPtr());
-
-                        }
-                    }
-
-                }
+        }
 
 
 
-                // Copy from 3D texture into Atlas brick
-
-            }
-//        }
-//        else
-//        {
-//            if (operationType == FILL_POSITION)
-//            {
-//                auto vclipmin = getScene()->mVClipMin;
-//                auto vclipmax = getScene()->mVClipMax;
-//                bool bnew;
-//                double *cursorOrigin = cursor->GetOrigin();
-//                Vector3DF origin(cursorOrigin[0], cursorOrigin[1], cursorOrigin[2]);
-//                unsigned int nbNodesPerAxis;
-//
-//                origin *= sceneFactor;
-//                origin -= (sceneOffset);
-//
-//                nbNodesPerAxis = pow(2, maxLevel - cursor->GetLevel());
-////                nbNodesPerAxis = 1;
-//
-//                unsigned int nbNodes = nbNodesPerAxis * nbNodesPerAxis * nbNodesPerAxis;
-////                if (nbNodes > 8)
-////                {
-////                    leaf_pos.reserve(leaf_pos.size() + nbNodes);
-////                    leaf_ptr.reserve(leaf_ptr.size() + nbNodes);
-////                }
-//                leaf_pos.push_back(origin);
-//
-//                unsigned int i, j, k;
-//                for (i = 0; i < nbNodesPerAxis; ++i)
-//                {
-//                    for (j = 0; j < nbNodesPerAxis; ++j)
-//                    {
-//                        for (k = 0; k < nbNodesPerAxis; ++k)
-//                        {
-//                            Vector3DF pos(origin.x + i, origin.y + j, origin.z + k);
-//                            slong leaf = ActivateSpace(mRoot, pos, bnew);
-//                            assert(leaf != ID_UNDEFL);
-//
-//                            if(!i && !j && !k)leaf_ptr.push_back(leaf);
-//                        }
-//                    }
-//                }
-//            }
-//            else if (operationType == FILL_SCALAR)
-//            {
-//
-////                double *tmp = htg->GetCellData()->GetScalars("tev")->GetTuple(cursor->GetGlobalNodeIndex());
-////                float tmpFloat = static_cast<float>(*tmp) + 200.f;
-////                if (tmpFloat > scalarMax)
-////                {
-////                    scalarMax = tmpFloat;
-////                }
-//                float tmpFloat = 1.f;
-//
-//                unsigned int nbNodesPerAxis = pow(2, maxLevel - cursor->GetLevel());
-//                unsigned int nbNodes = nbNodesPerAxis * nbNodesPerAxis * nbNodesPerAxis;
-//
-//
-//
-//                vtemp.SetDomain(leaf_pos[count], leaf_pos[count] + Vector3DF(nbNodesPerAxis, nbNodesPerAxis, nbNodesPerAxis));
-//                vtemp.CommitFromCPU(&tmpFloat);
-//
-//                // Copy from 3D texture into Atlas brick
-//                Node *node = getNode(leaf_ptr[count]);
-//                mPool->AtlasCopyTexZYX(0, node->mValue, vtemp.getPtr());
-//
-////                for (unsigned int i = 0; i < nbNodes; i++)
-////                {
-////                    vtemp.SetDomain(leaf_pos[count + i], leaf_pos[count + i]  + Vector3DF(1.f,1.f,1.f));
-////                    vtemp.CommitFromCPU(&tmpFloat);
-////
-////                    // Copy from 3D texture into Atlas brick
-////                    Node *node = getNode(leaf_ptr[count + i]);
-////                    mPool->AtlasCopyTexZYX(0, node->mValue, vtemp.getPtr());
-////                }
-//                count += 1;//nbNodes;
-//            }
-//        }
     }
     else
     {
@@ -2420,7 +2287,7 @@ void VolumeGVDB::dfsHT(vtkHyperTreeGrid *htg,
         for (unsigned int i = 0; i < nbChild; i++)
         {
             cursor->ToChild(i);
-            dfsHT(htg, cursor, maxLevel, count, vtemp, vrange0, operationType);
+            dfsHT(htg, cursor);
             cursor->ToParent();
         }
     }
@@ -2438,9 +2305,11 @@ bool VolumeGVDB::LoadHTG(std::string fname)
 
     verbosef("   Reading VTK-HyperTreeGrid file.\n");
 
+    unsigned int levelLimit = 7;
+
     auto reader = vtkXMLHyperTreeGridReader::New();
     reader->SetFileName(fname.c_str());
-    reader->SetFixedLevel(7);
+    reader->SetFixedLevel(levelLimit);
     reader->Update();
 
     auto htg = reader->GetOutput();
@@ -2503,11 +2372,11 @@ bool VolumeGVDB::LoadHTG(std::string fname)
 
     float diffFactor = biggestAxe / totalHTGBiggestAxe;
 
-    nbTrees = nbTrees * (float)diffFactor;
+    nbTrees = nbTrees * (float) diffFactor;
 
     unsigned int tmp = 1;
 
-    while(tmp < nbTrees.x || tmp < nbTrees.y || tmp < nbTrees.z)
+    while (tmp < nbTrees.x || tmp < nbTrees.y || tmp < nbTrees.z)
     {
         tmp *= 2;
     }
@@ -2520,20 +2389,21 @@ bool VolumeGVDB::LoadHTG(std::string fname)
 
     // For the voxel size we considere that the HTG is uniform, for simplicity
 
-    unsigned int htgNbLevel = std::min(htg->GetNumberOfLevels(), 7u);
+    unsigned int htgNbLevel = std::min(htg->GetNumberOfLevels(), levelLimit);
 
-    unsigned int resolution = tmp * (int)pow(2, htgNbLevel);
+    unsigned int resolution = tmp * (int) pow(2, htgNbLevel);
 
     unsigned int nbLevels = log2(resolution);
     sceneSize = pow(2, nbLevels);
 
-    sceneFactor = sceneSize / (biggestAxe * (tmp / std::max(nbTrees.x, std::max(nbTrees.y, nbTrees.z))));//std::max(htgBounds[1] - htgBounds[0],
-                               //        std::max(htgBounds[3] - htgBounds[2], htgBounds[5] - htgBounds[4]));
+    sceneFactor = sceneSize / (biggestAxe * (tmp / std::max(nbTrees.x, std::max(nbTrees.y,
+                                                                                nbTrees.z))));//std::max(htgBounds[1] - htgBounds[0],
+    //        std::max(htgBounds[3] - htgBounds[2], htgBounds[5] - htgBounds[4]));
     sceneOffset = minBounds * sceneFactor;
     bool bnew;
 
     unsigned int gridArgs[5] = {0, 0, 0, 0, 3};
-    for (unsigned int i = 0; i < nbLevels -3; i++)
+    for (unsigned int i = 0; i < nbLevels - 3; i++)
     {
         ++gridArgs[i % 4];
     }
@@ -2568,18 +2438,17 @@ bool VolumeGVDB::LoadHTG(std::string fname)
     PERF_PUSH("Activate");
     n = 0;
     verbosef("   Activating space.\n");
-    Vector3DF originZero(0.f,0.f,0.f);
+    Vector3DF originZero(0.f, 0.f, 0.f);
     ActivateSpace(mRoot, originZero, bnew);
 
     treeIterator.Initialize(htg);
-
 
 
     count = 0;
     while ((hyperTree = treeIterator.GetNextTree()))
     {
         cursor->Initialize(htg, hyperTree->GetTreeIndex());
-        dfsHT(htg, cursor, htgNbLevel - 1, count, vtemp, vrange0, FILL_POSITION);
+        dfsHT(htg, cursor);
     }
 
     // Finish Topology
@@ -2593,32 +2462,55 @@ bool VolumeGVDB::LoadHTG(std::string fname)
 
     DestroyChannels();
     AddChannel(0, T_FLOAT, mApron, F_LINEAR);
+    AddChannel(1, T_UCHAR4, mApron, F_LINEAR);
     UpdateAtlas();
     PERF_POP();
     //verbosef ( "   Create Atlas. Free after:  %6.2f MB, # Leaf: %d\n", cudaGetFreeMem(), leaf_max );
 
-    // Resize temp 3D texture to match leaf res
-    int res0 = getRes(0);
-    Vector3DI vres0(res0, res0, res0);        // leaf resolution
-    vrange0 = getRange(0);
-
-    vtemp.Resize(T_FLOAT, vres0, 0x0, false);
-    vclipmin = getScene()->mVClipMin;
-    vclipmax = getScene()->mVClipMax;
-
     // Read brick data
     PERF_PUSH("Read bricks");
 
-    treeIterator.Initialize(htg);
-
-    count = 0;
-    while ((hyperTree = treeIterator.GetNextTree()))
-    {
-        cursor->Initialize(htg, hyperTree->GetTreeIndex());
-        dfsHT(htg, cursor, htgNbLevel - 1, count, vtemp, vrange0, FILL_SCALAR);
-    }
-
     PERF_POP();
+
+    unsigned int numberOfVoxels = htgPositions.size();
+
+    DataPtr htgPosPtr;
+    DataPtr htgColorPtr;
+
+    DataPtr pntpos, pntclr;
+    AllocData(htgPosPtr, numberOfVoxels, sizeof(Vector3DF));
+    AllocData(htgColorPtr, numberOfVoxels, sizeof(Vector3DF));
+    {
+        Vector3DF *tmpPtr = (Vector3DF *) getDataPtr(0, htgPosPtr);
+
+        for (unsigned int i = 0; i < numberOfVoxels; ++i)
+        {
+            tmpPtr[i] = htgPositions[i];
+        }
+        htgPositions.clear();
+    }
+    {
+        uint* tmpPtr = (uint *) getDataPtr(0, htgColorPtr);
+        for (unsigned int i = 0; i < numberOfVoxels; ++i)
+        {
+            tmpPtr[i] = htgColors[i];
+        }
+        htgColors.clear();
+    }
+    CommitData(htgPosPtr);
+    CommitData(htgColorPtr);
+
+    SetDataGPU(pntpos, numberOfVoxels, htgPosPtr.gpu, 0, sizeof(Vector3DF));
+    SetDataGPU(pntclr, numberOfVoxels, htgColorPtr.gpu, 0, sizeof(Vector3DF));
+
+    DataPtr data;
+    SetPoints(pntpos, data, pntclr);
+
+    int scPntLen = 0;
+    int subcell_size = 1;
+    float radius = 1.0;
+    InsertPointsSubcell(subcell_size, numberOfVoxels, radius, Vector3DF(0, 0, 0), scPntLen);
+    GatherDensity(subcell_size, numberOfVoxels, radius, Vector3DF(0, 0, 0), scPntLen, 0, 1, true); // true = accumulate
 
     UpdateApron();
 
