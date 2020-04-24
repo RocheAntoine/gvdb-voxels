@@ -2317,6 +2317,55 @@ void VolumeGVDB::dfsHT(vtkHyperTreeGrid *htg,
     }
 };
 
+void VolumeGVDB::pushNodesIntoGPU(std::vector<Vector3DF>& positions, std::vector<uint>& colors, float nodeSize)
+{
+    DataPtr htgPosPtr;
+    DataPtr htgColorPtr;
+
+    unsigned int numberOfVoxels = positions.size();
+
+    if(!numberOfVoxels)
+        return;
+
+    DataPtr pntpos, pntclr;
+    AllocData(htgPosPtr, numberOfVoxels, sizeof(Vector3DF));
+    AllocData(htgColorPtr, numberOfVoxels, sizeof(uint));
+    {
+        Vector3DF *tmpPtr = (Vector3DF *) getDataPtr(0, htgPosPtr);
+
+        for (unsigned int i = 0; i < numberOfVoxels; ++i)
+        {
+            tmpPtr[i] = positions[i];
+        }
+        positions.clear();
+    }
+    {
+        uint *tmpPtr = (uint *) getDataPtr(0, htgColorPtr);
+        for (unsigned int i = 0; i < numberOfVoxels; ++i)
+        {
+            tmpPtr[i] = colors[i];
+        }
+        colors.clear();
+    }
+
+    CommitData(htgColorPtr);
+    CommitData(htgPosPtr);
+
+    SetDataGPU(pntpos, numberOfVoxels, htgPosPtr.gpu, 0, sizeof(Vector3DF));
+    SetDataGPU(pntclr, numberOfVoxels, htgColorPtr.gpu, 0, sizeof(uint));
+
+    DataPtr data;
+    SetPoints(pntpos, data, pntclr);
+
+    int scPntLen = 0;
+    int subcell_size = 8;
+    float radius = 1.f;
+
+    InsertPointsSubcell(subcell_size, numberOfVoxels, radius, Vector3DF(0.f,0.f , 0.f), scPntLen);
+    GatherDensity(subcell_size, numberOfVoxels, radius, Vector3DF(0, 0, 0), scPntLen, 0, 1,
+                  true); // true = accumulate
+}
+
 #endif
 
 bool VolumeGVDB::LoadHTG(std::string fname)
@@ -2329,7 +2378,7 @@ bool VolumeGVDB::LoadHTG(std::string fname)
 
     verbosef("   Reading VTK-HyperTreeGrid file.\n");
 
-    unsigned int levelLimit = 6;
+    unsigned int levelLimit = 7;
 
     auto reader = vtkXMLHyperTreeGridReader::New();
     reader->SetFileName(fname.c_str());
@@ -2427,10 +2476,9 @@ bool VolumeGVDB::LoadHTG(std::string fname)
 
     unsigned int htgNbLevel = std::min(htg->GetNumberOfLevels(), levelLimit);
 
-    unsigned int resolution = tmp * (int) pow(2, htgNbLevel);
+    unsigned int sceneSize = tmp * (int) pow(2, htgNbLevel);
 
-    unsigned int nbLevels = log2(resolution);
-    sceneSize = pow(2, nbLevels);
+    unsigned int nbLevels = log2(sceneSize);
 
     sceneFactor = sceneSize / (biggestAxe * (tmp / std::max(nbTrees.x, std::max(nbTrees.y,
                                                                                 nbTrees.z))));//std::max(htgBounds[1] - htgBounds[0],
@@ -2502,96 +2550,15 @@ bool VolumeGVDB::LoadHTG(std::string fname)
         dfsHT(htg, cursor, HTG_FILL_INFO);
 
         numberOfVoxels = htgPositions.size();
-
-        if (numberOfVoxels < 100000)
-        {
+        if(numberOfVoxels < 1000000)
             continue;
-        }
-        DataPtr htgPosPtr;
-        DataPtr htgColorPtr;
-
-        DataPtr pntpos, pntclr;
-        AllocData(htgPosPtr, numberOfVoxels, sizeof(Vector3DF));
-        AllocData(htgColorPtr, numberOfVoxels, sizeof(uint));
-        {
-            Vector3DF *tmpPtr = (Vector3DF *) getDataPtr(0, htgPosPtr);
-
-            for (unsigned int i = 0; i < numberOfVoxels; ++i)
-            {
-                tmpPtr[i] = htgPositions[i];
-            }
-            htgPositions.clear();
-        }
-        {
-            uint *tmpPtr = (uint *) getDataPtr(0, htgColorPtr);
-            for (unsigned int i = 0; i < numberOfVoxels; ++i)
-            {
-                tmpPtr[i] = htgColors[i];
-            }
-            htgColors.clear();
-        }
-        CommitData(htgPosPtr);
-        CommitData(htgColorPtr);
-
-        SetDataGPU(pntpos, numberOfVoxels, htgPosPtr.gpu, 0, sizeof(Vector3DF));
-        SetDataGPU(pntclr, numberOfVoxels, htgColorPtr.gpu, 0, sizeof(uint));
-
-        DataPtr data;
-        SetPoints(pntpos, data, pntclr);
-
-        int scPntLen = 0;
-        int subcell_size = 8;
-        float radius = 1.f;
-        InsertPointsSubcell(subcell_size, numberOfVoxels, radius, Vector3DF(0, 0, 0), scPntLen);
-        GatherDensity(subcell_size, numberOfVoxels, radius, Vector3DF(0, 0, 0), scPntLen, 0, 1,
-                      true); // true = accumulate
-
-        numberOfVoxels = 0;
-        ++count;
+        pushNodesIntoGPU(htgPositions, htgColors, 1);
+        htgPositions.reserve(1000000);
+        htgColors.reserve(1000000);
     }
 
-    if (numberOfVoxels > 0)
-    {
+    pushNodesIntoGPU(htgPositions, htgColors, 1);
 
-        DataPtr htgPosPtr;
-        DataPtr htgColorPtr;
-
-        DataPtr pntpos, pntclr;
-        AllocData(htgPosPtr, numberOfVoxels, sizeof(Vector3DF));
-        AllocData(htgColorPtr, numberOfVoxels, sizeof(uint));
-        {
-            Vector3DF *tmpPtr = (Vector3DF *) getDataPtr(0, htgPosPtr);
-
-            for (unsigned int i = 0; i < numberOfVoxels; ++i)
-            {
-                tmpPtr[i] = htgPositions[i];
-            }
-            htgPositions.clear();
-        }
-        {
-            uint *tmpPtr = (uint *) getDataPtr(0, htgColorPtr);
-            for (unsigned int i = 0; i < numberOfVoxels; ++i)
-            {
-                tmpPtr[i] = htgColors[i];
-            }
-            htgColors.clear();
-        }
-        CommitData(htgPosPtr);
-        CommitData(htgColorPtr);
-
-        SetDataGPU(pntpos, numberOfVoxels, htgPosPtr.gpu, 0, sizeof(Vector3DF));
-        SetDataGPU(pntclr, numberOfVoxels, htgColorPtr.gpu, 0, sizeof(uint));
-
-        DataPtr data;
-        SetPoints(pntpos, data, pntclr);
-
-        int scPntLen = 0;
-        int subcell_size = 8;
-        float radius = 1.f;
-        InsertPointsSubcell(subcell_size, numberOfVoxels, radius, Vector3DF(0, 0, 0), scPntLen);
-        GatherDensity(subcell_size, numberOfVoxels, radius, Vector3DF(0, 0, 0), scPntLen, 0, 1,
-                      true); // true = accumulate
-    }
     UpdateApron();
 
 

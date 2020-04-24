@@ -1053,6 +1053,7 @@ namespace nvdb
 #ifdef VTK_FOUND
         //VTK functions
         void dfsHT(vtkHyperTreeGrid *,vtkHyperTreeGridNonOrientedGeometryCursor*, unsigned int);
+        void pushNodesIntoGPU(std::vector<Vector3DF>& positions, std::vector<uint>& colors, float nodeSize);
 #endif
 
     protected:
