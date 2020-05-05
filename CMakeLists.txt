@@ -34,3 +34,7 @@ set(GVDB_BUILD_OPENVDB_SAMPLES OFF CACHE BOOL "If ON, includes samples using Ope
 if(GVDB_BUILD_OPENVDB_SAMPLES)
     add_subdirectory("source/gImportVDB" "gImportVDB")
 endif()
+set(GVDB_BUILD_VTK_SAMPLES OFF CACHE BOOL "If ON, includes samples using VTK in build.")
+if(GVDB_BUILD_VTK_SAMPLES)
+    add_subdirectory("source/tests" "tests")
+endif()
