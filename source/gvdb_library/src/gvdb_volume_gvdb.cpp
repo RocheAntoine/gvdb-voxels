@@ -2212,7 +2212,7 @@ bool VolumeGVDB::LoadBRK(std::string fname)
 
     return true;
 }
-
+#define VTK_FOUND
 #ifdef VTK_FOUND
 
 #undef AllValues
@@ -2367,7 +2367,7 @@ void VolumeGVDB::pushNodesIntoGPU(std::vector<Vector3DF>& positions, std::vector
 
 #endif
 
-bool VolumeGVDB::LoadHTG(std::string fname, unsigned int levelLimit)
+bool VolumeGVDB::LoadHTG(std::string fname, std::string scalarName, unsigned int levelLimit)
 {
 #ifdef VTK_FOUND
 
@@ -2384,7 +2384,7 @@ bool VolumeGVDB::LoadHTG(std::string fname, unsigned int levelLimit)
 
     auto htg = reader->GetOutput();
 
-    scalars = htg->GetCellData()->GetScalars("power");
+    scalars = htg->GetCellData()->GetScalars(scalarName.c_str());
 
     if (scalars)
     {

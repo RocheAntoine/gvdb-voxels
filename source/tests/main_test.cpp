@@ -142,7 +142,7 @@ bool Sample::init()
 //    gvdb.getScene()->LinearTransferFunc ( 0.0f, 1.f,  Vector4DF(1,1,1,0.01), Vector4DF(1,1,1,0.01f) );
 
     gvdb.CommitTransferFunc();
-    gvdb.LoadHTG("/home/antoine/data/assembly_threshold.htg", 3u);
+    gvdb.LoadHTG("/home/antoine/data/assembly_threshold.htg", "power", 5u);
 
 		// Let GVDB know channel 1 can be used for color
 
