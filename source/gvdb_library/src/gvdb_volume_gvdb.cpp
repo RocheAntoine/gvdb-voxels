@@ -2384,7 +2384,7 @@ bool VolumeGVDB::LoadHTG(std::string fname, unsigned int levelLimit)
 
     auto htg = reader->GetOutput();
 
-    scalars = htg->GetCellData()->GetScalars("cylinder_id");
+    scalars = htg->GetCellData()->GetScalars("power");
 
     if (scalars)
     {
@@ -2558,6 +2558,7 @@ bool VolumeGVDB::LoadHTG(std::string fname, unsigned int levelLimit)
 
     UpdateApron();
 
+    SetColorChannel(1);
 
     PERF_POP();        // Activate
 
