@@ -23,7 +23,6 @@
 
 #ifndef DEF_VOL_GVDB
 #define DEF_VOL_GVDB
-#define VTK_FOUND
 
 #include "gvdb_types.h"
 #include "gvdb_node.h"
