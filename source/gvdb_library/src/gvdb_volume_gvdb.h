@@ -433,7 +433,7 @@ namespace nvdb
 
         bool LoadVBX(const std::string fname, int force_maj = 0, int force_min = 0);
 
-        bool LoadHTG(std::string fname);
+        bool LoadHTG(std::string fname, unsigned int);
 
         void SaveVBX(const std::string fname);
 

@@ -2368,7 +2368,7 @@ void VolumeGVDB::pushNodesIntoGPU(std::vector<Vector3DF>& positions, std::vector
 
 #endif
 
-bool VolumeGVDB::LoadHTG(std::string fname)
+bool VolumeGVDB::LoadHTG(std::string fname, unsigned int levelLimit)
 {
 #ifdef VTK_FOUND
 
@@ -2378,8 +2378,6 @@ bool VolumeGVDB::LoadHTG(std::string fname)
 
     verbosef("   Reading VTK-HyperTreeGrid file.\n");
 
-    unsigned int levelLimit = 7;
-
     auto reader = vtkXMLHyperTreeGridReader::New();
     reader->SetFileName(fname.c_str());
     reader->SetFixedLevel(levelLimit);
@@ -2387,7 +2385,7 @@ bool VolumeGVDB::LoadHTG(std::string fname)
 
     auto htg = reader->GetOutput();
 
-    scalars = htg->GetCellData()->GetScalars("tev");
+    scalars = htg->GetCellData()->GetScalars("cylinder_id");
 
     if (scalars)
     {
