@@ -2212,7 +2212,6 @@ bool VolumeGVDB::LoadBRK(std::string fname)
 
     return true;
 }
-#define VTK_FOUND
 #ifdef VTK_FOUND
 
 #undef AllValues
