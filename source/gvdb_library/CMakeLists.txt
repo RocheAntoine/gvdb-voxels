@@ -141,12 +141,12 @@ endmacro()
 
 set(VTK_DIR "" CACHE STRING "VTK folder containing vtkConfig.cmake")
 
-find_package(VTK)
+find_package(VTK )
 if(${VTK_FOUND})
     message("VTK found")
-    set(ENV{VTK_FOUND} [1])
-    include_directories(${VTK_INCLUDE_DIRS})
+    target_include_directories(gvdb PRIVATE ${VTK_INCLUDE_DIRS})
     target_link_libraries(gvdb PRIVATE ${VTK_LIBRARIES})
+    target_compile_definitions(gvdb PRIVATE -DVTK_FOUND)
 endif()
 
 # Allow the developer to build with or without OpenVDB
