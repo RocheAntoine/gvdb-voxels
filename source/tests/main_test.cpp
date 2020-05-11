@@ -79,7 +79,8 @@ void handle_gui(int gui, float val)
             gvdb.getScene()->LinearTransferFunc(0.2f, 0.3f, Vector4DF(1, 0.5, 0, 0.5), Vector4DF(0, 0, 0, 0.0));
             gvdb.getScene()->LinearTransferFunc(0.3f, 1.0f, Vector4DF(0, 0, 0, 0.0), Vector4DF(0, 0, 0, 0.0));
             gvdb.CommitTransferFunc();
-        } else
+        }
+        else
         {                // Or set volumetric style, x-ray white
             gvdb.getScene()->LinearTransferFunc(0.00f, 0.1f, Vector4DF(0, 0, 0, 0), Vector4DF(0, 0, 0, 0));
             gvdb.getScene()->LinearTransferFunc(0.1f, 0.25f, Vector4DF(0, 0, 0, 0), Vector4DF(1, 1, 1, 0.8f));
@@ -134,17 +135,31 @@ bool Sample::init()
     gvdb.getScene()->SetExtinct(-1.0f, 1.2f, 0.0f);        // Set volume extinction
     gvdb.getScene()->SetVolumeRange(0.3f, 0.0f, 1.0f);    // Set volume value range
     gvdb.getScene()->SetCutoff(0.005f, 0.01f, 0.0f);
-    gvdb.getScene()->SetBackgroundClr(0.3f, 0.3f, 0.3f, 1.0f);
-    gvdb.getScene()->LinearTransferFunc ( 0.0f, 0.2f,  Vector4DF(0,0,0,0.0), Vector4DF(1,1,1,0.01f) );
-    gvdb.getScene()->LinearTransferFunc ( 0.2f, 0.3f,   Vector4DF(1,1,1,0.05f), Vector4DF(1,1,1,0.05f) );
-    gvdb.getScene()->LinearTransferFunc ( 0.3f, 1.0f,   Vector4DF(1,1,1,0.05f), Vector4DF(0,0,0,0.0) );
+    gvdb.getScene()->SetBackgroundClr(1.f, 1.f, 1.f, 1.0f);
+
+/// Custom settings, more transparent
+    gvdb.getScene()->LinearTransferFunc(0.0f, 0.2f, Vector4DF(0, 0, 0, 0.0), Vector4DF(1, 1, 1, 0.01f));
+    gvdb.getScene()->LinearTransferFunc(0.2f, 0.3f, Vector4DF(1, 1, 1, 0.01f), Vector4DF(1, 1, 1, 0.02f));
+    gvdb.getScene()->LinearTransferFunc(0.3f, 1.0f, Vector4DF(1, 1, 1, 0.02f), Vector4DF(0, 0, 0, 0.0));
+
+
+/// Base settings
+//    gvdb.getScene()->LinearTransferFunc ( 0.0f, 0.2f,  Vector4DF(0,0,0,0.0), Vector4DF(1,1,1,0.01f) );
+//    gvdb.getScene()->LinearTransferFunc ( 0.2f, 0.3f,   Vector4DF(1,1,1,0.01f), Vector4DF(1,1,1,0.05f) );
+//    gvdb.getScene()->LinearTransferFunc ( 0.3f, 1.0f,   Vector4DF(1,1,1,0.05f), Vector4DF(0,0,0,0.0) );
+
+
+/// "Volume contours"
+//    gvdb.getScene()->LinearTransferFunc ( 0.0f, 0.2f,  Vector4DF(1,1,1,0.0), Vector4DF(1,1,1,0.01f) );
+//    gvdb.getScene()->LinearTransferFunc ( 0.2f, 0.3f,   Vector4DF(1,1,1,0.01f), Vector4DF(1,1,1,0.01f) );
+//    gvdb.getScene()->LinearTransferFunc ( 0.3f, 1.0f,   Vector4DF(1,1,1,0.01f), Vector4DF(0,0,0,0.0) );
 
 //    gvdb.getScene()->LinearTransferFunc ( 0.0f, 1.f,  Vector4DF(1,1,1,0.01), Vector4DF(1,1,1,0.01f) );
 
     gvdb.CommitTransferFunc();
-    gvdb.LoadHTG("/home/antoine/data/assembly_threshold.htg", "power", 5u);
+    gvdb.LoadHTG("/home/antoine/data/ya31/ya31_10k_water.htg", "tev");
 
-		// Let GVDB know channel 1 can be used for color
+    // Let GVDB know channel 1 can be used for color
 
 //    gvdb.DifferentLevelsCubes();
 
@@ -312,7 +327,8 @@ void Sample::display()
 
     renderScreenQuadGL(gl_screen_tex);            // Render screen-space quad with texture
 
-    if (m_show_rays && m_simulate) draw_rays();    // Draw deposition rays with OpenGL in 3D
+    if (m_show_rays && m_simulate)
+    { draw_rays(); }    // Draw deposition rays with OpenGL in 3D
 
     if (m_show_topo) draw_topology();            // Draw GVDB topology
 
@@ -340,8 +356,10 @@ void Sample::motion(int x, int y, int dx, int dy)
             Vector3DF angs = (shift ? lgt->getAng() : cam->getAng());
             angs.x += dx * 0.2f;
             angs.y -= dy * 0.2f;
-            if (shift) lgt->setOrbit(angs, lgt->getToPos(), lgt->getOrbitDist(), lgt->getDolly());
-            else cam->setOrbit(angs, cam->getToPos(), cam->getOrbitDist(), cam->getDolly());
+            if (shift)
+            { lgt->setOrbit(angs, lgt->getToPos(), lgt->getOrbitDist(), lgt->getDolly()); }
+            else
+            { cam->setOrbit(angs, cam->getToPos(), cam->getOrbitDist(), cam->getDolly()); }
             postRedisplay();    // Update display
         }
             break;
@@ -359,8 +377,10 @@ void Sample::motion(int x, int y, int dx, int dy)
             // Adjust dist
             float dist = (shift ? lgt->getOrbitDist() : cam->getOrbitDist());
             dist -= dy;
-            if (shift) lgt->setOrbit(lgt->getAng(), lgt->getToPos(), dist, cam->getDolly());
-            else cam->setOrbit(cam->getAng(), cam->getToPos(), dist, cam->getDolly());
+            if (shift)
+            { lgt->setOrbit(lgt->getAng(), lgt->getToPos(), dist, cam->getDolly()); }
+            else
+            { cam->setOrbit(cam->getAng(), cam->getToPos(), dist, cam->getDolly()); }
             postRedisplay();    // Update display
         }
             break;
@@ -369,7 +389,8 @@ void Sample::motion(int x, int y, int dx, int dy)
 
 void Sample::mouse(NVPWindow::MouseButton button, NVPWindow::ButtonAction state, int mods, int x, int y)
 {
-    if (guiHandler(button, state, x, y)) return;
+    if (guiHandler(button, state, x, y))
+    { return; }
 
     // Track when we are in a mouse drag
     mouse_down = (state == NVPWindow::BUTTON_PRESS) ? button : -1;

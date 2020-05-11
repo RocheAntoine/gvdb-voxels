@@ -2387,6 +2387,7 @@ bool VolumeGVDB::LoadHTG(std::string fname, std::string scalarName, unsigned int
 
     if (scalars)
     {
+        std::cout << "\"" << scalarName << "\" scalar exists" << std::endl;
         dataRange = scalars->GetRange();
 
         lut = vtkLookupTable::New();
@@ -2519,7 +2520,7 @@ bool VolumeGVDB::LoadHTG(std::string fname, std::string scalarName, unsigned int
     n = 0;
     verbosef("   Activating space.\n");
     Vector3DF originZero(0.f, 0.f, 0.f);
-    ActivateSpace(mRoot, originZero, bnew);
+//    ActivateSpace(mRoot, originZero, bnew);
 
     treeIterator.Initialize(htg);
     while ((hyperTree = treeIterator.GetNextTree()))
@@ -2676,7 +2677,7 @@ bool VolumeGVDB::LoadVDB(std::string fname)
 		Configure ( 3, 3, 3, 3, 4 );
 	}
 	SetTransform(Vector3DF(0.f, 0.f, 0.f), voxelsize, Vector3DF(0.f, 0.f, 0.f), Vector3DF(0.f, 0.f, 0.f));
-	SetApron ( 1 );
+	SetApron ( 0 );
 
 	float pused = MeasurePools ();
 	verbosef( "   Topology Used: %6.2f MB\n", pused );
