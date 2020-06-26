@@ -135,8 +135,8 @@ bool Sample::init()
     htg.setDimensions(1,1,1);
 
     double center[3] = {50,50,50};
-	dataGeneration::generateSphere(htg, center, 50, 5, true);
-
+//	dataGeneration::generateSphere(htg, center, 50, 5, false, false);
+	dataGeneration::generateDifferentSizeCubes(htg, 3);
     // Initialize GVDB
     int devid = -1;
     gvdb.SetDebug(true);

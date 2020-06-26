@@ -22,6 +22,7 @@ typedef struct
 	nvdb::VolumeGVDB *gvdb;
 	openHyperTreeGrid *openHTG;
 	Vector3DF sceneOffset;
+	uint64_t numberOfVoxel{0};
 } data_t;
 
 
@@ -76,7 +77,7 @@ void pushNodesIntoGPU(data_t &data)
 	                         true); // true = accumulate
 }
 
-void dfsHT(openHyperTreeGridCursor & cursor,
+void dfsHT(openHyperTreeGridCursorNonOrientedGeometry & cursor,
            unsigned int operation, data_t &data)
 {
 
@@ -118,6 +119,7 @@ void dfsHT(openHyperTreeGridCursor & cursor,
 						data.htgPositions.push_back(pos);
 						data.htgColors.push_back(color);
 					}
+					++data.numberOfVoxel;
 				}
 			}
 
@@ -147,7 +149,7 @@ void OpenHTGtoGVDBConverter::compute(openHyperTreeGrid &openHTGIn, nvdb::VolumeG
 	nvdb::Vector3DF maxBounds;
 	unsigned int count = 0;
 
-	auto cursor = openHyperTreeGridCursor(*data.openHTG);
+	auto cursor = openHyperTreeGridCursorNonOrientedGeometry(*data.openHTG);
 	for (uint32_t i = 0; i < data.openHTG->getMaxNumberOfTrees(); ++i)
 	{
 		if (!cursor.toTree(i))
@@ -218,8 +220,6 @@ void OpenHTGtoGVDBConverter::compute(openHyperTreeGrid &openHTGIn, nvdb::VolumeG
 
 	data.gvdb->Configure(gridArgs[0], gridArgs[1], gridArgs[2], gridArgs[3], gridArgs[4]);
 
-	cursor = openHyperTreeGridCursor(*data.openHTG);
-
 	for (uint32_t i = 0; i < data.openHTG->getMaxNumberOfTrees(); ++i)
 	{
 		if (cursor.toTree(i))
@@ -236,8 +236,6 @@ void OpenHTGtoGVDBConverter::compute(openHyperTreeGrid &openHTGIn, nvdb::VolumeG
 	data.gvdb->UpdateAtlas();
 
 	unsigned int numberOfVoxels;
-
-	cursor = openHyperTreeGridCursor(*data.openHTG);
 
 	for (uint32_t i = 0; i < data.openHTG->getMaxNumberOfTrees(); ++i)
 	{
@@ -258,6 +256,8 @@ void OpenHTGtoGVDBConverter::compute(openHyperTreeGrid &openHTGIn, nvdb::VolumeG
 	}
 
 	pushNodesIntoGPU(data);
+
+	std::cout << "Number of voxels in GVDB structure : " << data.numberOfVoxel << std::endl;
 
 	data.gvdb->UpdateApron();
 
