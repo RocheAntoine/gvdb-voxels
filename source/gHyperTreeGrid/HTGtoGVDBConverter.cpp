@@ -13,8 +13,8 @@
 #include <vtkDoubleArray.h>
 #include <vtkLookupTable.h>
 
-uint8_t HTG_ACTIVATE_SPACE = 0;
-uint8_t HTG_FILL_INFO = 1;
+const uint8_t HTG_ACTIVATE_SPACE = 0;
+const uint8_t HTG_FILL_INFO = 1;
 
 typedef struct
 {

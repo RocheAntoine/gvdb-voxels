@@ -39,7 +39,7 @@ if(GVDB_BUILD_VTK_SAMPLES)
     add_subdirectory("source/gHyperTreeGrid")
 endif()
 
-set(GVDB_BUILD_OPENHTG_SAMPLES OFF CACHE BOOL "If ON, includes samples using OenHTG in build.")
+set(GVDB_BUILD_OPENHTG_SAMPLES OFF CACHE BOOL "If ON, includes samples using OpenHTG in build.")
 if(GVDB_BUILD_OPENHTG_SAMPLES)
     add_subdirectory("source/gOpenHyperTreeGrid")
 endif()
