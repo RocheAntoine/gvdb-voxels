@@ -139,17 +139,6 @@ macro(_gvdb_find variable path)
     endif()
 endmacro()
 
-if ( GVDB_BUILD_VTK_SAMPLES )
-    set(VTK_DIR "" CACHE STRING "VTK folder containing vtkConfig.cmake")
-
-    find_package(VTK )
-    if(${VTK_FOUND})
-        message("VTK found")
-        target_link_libraries(gvdb PUBLIC VTK::CommonDataModel VTK::IOXML )
-        target_compile_definitions(gvdb PRIVATE -DVTK_FOUND)
-    endif()
-
-endif()
 # Allow the developer to build with or without OpenVDB
 set(GVDB_BUILD_OPENVDB OFF CACHE BOOL "If ON, builds GVDB with OpenVDB and #defines BUILD_OPENVDB.")
 set(GVDB_OPENVDB_LIBRARIES_TO_COPY "")

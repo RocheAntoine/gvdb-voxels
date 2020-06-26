@@ -15,7 +15,7 @@ if(NOT TARGET gvdb)
 endif()
 
 # Main project
-add_executable(${PROJECT_NAME} main_test.cpp)
+add_executable(${PROJECT_NAME} main_test.cpp HTGtoGVDBConverter.cpp HTGtoGVDBConverter.h)
 
 # Link with GVDB:
 target_link_libraries(${PROJECT_NAME} PRIVATE gvdb)
@@ -42,6 +42,19 @@ find_package(Utils REQUIRED)
 # Then add the utils to the list of source files to build:
 target_sources(${PROJECT_NAME}
     PRIVATE ${UTIL_SOURCE_FILES})
+
+
+if ( GVDB_BUILD_VTK_SAMPLES )
+    set(VTK_DIR "" CACHE STRING "VTK folder containing vtkConfig.cmake")
+
+    find_package(VTK)
+    if(${VTK_FOUND})
+        message("VTK found")
+        target_link_libraries(${PROJECT_NAME} PUBLIC VTK::CommonDataModel VTK::IOXML )
+        target_compile_definitions(${PROJECT_NAME} PRIVATE -DVTK_FOUND)
+    endif()
+
+endif()
 
 # Set asset path definition:
 if ( NOT DEFINED ASSET_PATH ) 

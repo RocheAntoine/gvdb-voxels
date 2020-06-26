@@ -58,10 +58,6 @@ class OVDBGrid;
 
 class Volume3D;
 
-#ifdef VTK_FOUND
-class vtkHyperTreeGridNonOrientedGeometryCursor;
-class vtkHyperTreeGrid;
-#endif
 
 namespace nvdb
 {
@@ -431,8 +427,6 @@ namespace nvdb
         bool LoadVDB(std::string fname);
 
         bool LoadVBX(const std::string fname, int force_maj = 0, int force_min = 0);
-
-        bool LoadHTG(std::string fname, std::string scalarName, unsigned int levelLimit = 99u);
 
         void SaveVBX(const std::string fname);
 
@@ -1048,12 +1042,6 @@ namespace nvdb
 
         void SetBias(float b)
         { m_bias = b; }
-
-#ifdef VTK_FOUND
-        //VTK functions
-        void dfsHT(vtkHyperTreeGrid *,vtkHyperTreeGridNonOrientedGeometryCursor*, unsigned int);
-        void pushNodesIntoGPU(std::vector<Vector3DF>& positions, std::vector<uint>& colors, float nodeSize);
-#endif
 
     protected:
         // VDB Settings

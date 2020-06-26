@@ -22,6 +22,9 @@
 
 // GVDB library
 #include "gvdb.h"
+#include "vtkHyperTreeGrid.h"
+#include "vtkXMLHyperTreeGridReader.h"
+#include "HTGtoGVDBConverter.h"
 
 using namespace nvdb;
 
@@ -121,6 +124,13 @@ bool Sample::init()
     init2D("arial");
     setview2D(w, h);
 
+    //Read HyperTreeGrid file
+    auto htgReader = vtkXMLHyperTreeGridReader::New();
+    htgReader->SetFileName("/home/antoine/data/ya31/ya31_10k_water.htg");
+    htgReader->Update();
+
+    auto htg = htgReader->GetOutput();
+
     // Initialize GVDB
     int devid = -1;
     gvdb.SetDebug(true);
@@ -157,7 +167,8 @@ bool Sample::init()
 //    gvdb.getScene()->LinearTransferFunc ( 0.0f, 1.f,  Vector4DF(1,1,1,0.01), Vector4DF(1,1,1,0.01f) );
 
     gvdb.CommitTransferFunc();
-    gvdb.LoadHTG("/home/antoine/data/ya31/ya31_10k_water.htg", "tev");
+
+    HTGtoGVDBConverter::compute(htg, gvdb, "tev");
 
     // Let GVDB know channel 1 can be used for color
 
