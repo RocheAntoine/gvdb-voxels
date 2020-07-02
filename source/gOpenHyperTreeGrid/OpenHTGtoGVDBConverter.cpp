@@ -26,6 +26,36 @@ typedef struct
 } data_t;
 
 
+void activateSpace(const Vector3DF &pos, unsigned, data_t &data)
+{
+	data.gvdb->ActivateSpace(pos);
+}
+
+void fillInfo(const Vector3DF &pos, uint32_t color, data_t &data)
+{
+	data.htgPositions.push_back(pos);
+	data.htgColors.push_back(color);
+}
+
+void processVoxel(const Vector3DF &minCursor, const Vector3DF &maxCursor, uint32_t color, data_t & data,
+                  std::function<void(const Vector3DF &pos, unsigned color, data_t &data)> func)
+{
+	for (float i = minCursor.x; i < maxCursor.x; ++i)
+	{
+		for (float j = minCursor.y; j < maxCursor.y; ++j)
+		{
+			for (float k = minCursor.z; k < maxCursor.z; ++k)
+			{
+				Vector3DF pos(i, j, k);
+				func(pos, color, data);
+				++data.numberOfVoxel;
+			}
+		}
+
+	}
+}
+
+
 void pushNodesIntoGPU(data_t &data)
 {
 	DataPtr htgPosPtr;
@@ -43,19 +73,14 @@ void pushNodesIntoGPU(data_t &data)
 	data.gvdb->AllocData(htgColorPtr, numberOfVoxels, sizeof(uint));
 	{
 		nvdb::Vector3DF *tmpPtr = (nvdb::Vector3DF *) data.gvdb->getDataPtr(0, htgPosPtr);
-
-		for (unsigned int i = 0; i < numberOfVoxels; ++i)
-		{
-			tmpPtr[i] = data.htgPositions[i];
-		}
+		std::copy(data.htgPositions.begin(), data.htgPositions.end(), tmpPtr);
 		data.htgPositions.clear();
 	}
+
 	{
 		uint *tmpPtr = (uint *) data.gvdb->getDataPtr(0, htgColorPtr);
-		for (unsigned int i = 0; i < numberOfVoxels; ++i)
-		{
-			tmpPtr[i] = data.htgColors[i];
-		}
+		std::copy(data.htgColors.begin(), data.htgColors.end(), tmpPtr);
+
 		data.htgColors.clear();
 	}
 
@@ -77,7 +102,7 @@ void pushNodesIntoGPU(data_t &data)
 	                         true); // true = accumulate
 }
 
-void dfsHT(openHyperTreeGridCursorNonOrientedGeometry & cursor,
+void dfsHT(openHyperTreeGridCursorNonOrientedGeometry &cursor,
            unsigned int operation, data_t &data)
 {
 
@@ -97,39 +122,21 @@ void dfsHT(openHyperTreeGridCursorNonOrientedGeometry & cursor,
 		maxCursor *= data.sceneFactor;
 		maxCursor -= data.sceneOffset;
 
-		uint color;
 		if (operation == HTG_FILL_INFO)
 		{
-			color = 0x00FFFF00;
+			uint32_t color = 0x00FFFF00;
+			processVoxel(minCursor, maxCursor, color, data, fillInfo);
 		}
-
-		for (float i = minCursor.x; i < maxCursor.x; ++i)
+		else if(operation == HTG_ACTIVATE_SPACE)
 		{
-			for (float j = minCursor.y; j < maxCursor.y; ++j)
-			{
-				for (float k = minCursor.z; k < maxCursor.z; ++k)
-				{
-					Vector3DF pos(i, j, k);
-					if (operation == HTG_ACTIVATE_SPACE)
-					{
-						data.gvdb->ActivateSpace(pos);
-					}
-					else if (operation == HTG_FILL_INFO)
-					{
-						data.htgPositions.push_back(pos);
-						data.htgColors.push_back(color);
-					}
-					++data.numberOfVoxel;
-				}
-			}
-
+			processVoxel(minCursor, maxCursor, 0, data, activateSpace);
 		}
 
 
 	}
 	else
 	{
-		unsigned int nbChild = cursor.getNumberOfChildren();
+		const unsigned int nbChild = cursor.getNumberOfChildren();
 		for (unsigned int i = 0; i < nbChild; i++)
 		{
 			cursor.toChild(i);
@@ -140,7 +147,7 @@ void dfsHT(openHyperTreeGridCursorNonOrientedGeometry & cursor,
 };
 
 
-void OpenHTGtoGVDBConverter::compute(openHyperTreeGrid &openHTGIn, nvdb::VolumeGVDB &gvdbIn, const char* scalarName)
+void OpenHTGtoGVDBConverter::compute(openHyperTreeGrid &openHTGIn, nvdb::VolumeGVDB &gvdbIn, const char *scalarName)
 {
 	data_t data;
 	data.openHTG = &openHTGIn;
